@@ -9,6 +9,7 @@ require ENV['TM_SUPPORT_PATH'] + '/lib/tm/event'
 
 require ENV['TM_BUNDLE_SUPPORT'] + '/lib/gradle/prefs'
 require ENV['TM_BUNDLE_SUPPORT'] + '/lib/gradle/module'
+require ENV['TM_BUNDLE_SUPPORT'] + '/lib/gradle/output_formatter'
 
 require 'find'
 require "shellwords"
@@ -25,6 +26,10 @@ module Gradle
       assert_is_gradle_project
     end
 
+    def root_module
+      module_at_path @path
+    end
+    
     def most_local_module(file = ENV['TM_SELECTED_FILE'])
       if file.nil?
         puts "No file selection"
@@ -40,7 +45,7 @@ module Gradle
         parent = File.expand_path("#{parent}/..")
       end
       
-      module_at_path @path
+      root_module
     end
     
     def open_test_result(clazz)
@@ -76,23 +81,6 @@ module Gradle
       run(previous)
     end
     
-    def prompt_for_command_and_run
-      previous = @prefs.get("prev_prompt")
-      command = TextMate::UI.request_string(:title => "GradleMate", :prompt => "Enter a gradle command:", :default => previous)
-      if command.nil?
-        puts "Command cancelled"
-        false
-      else
-        @prefs.set("prev_prompt", command) unless command.nil?
-        run_string(command)
-        true
-      end
-    end
-    
-    def run_string(command)
-      run(*Shellwords.shellwords(command))
-    end
-    
     def has_gradlew
       File.executable? "#{@path}/gradlew"
     end
@@ -123,36 +111,9 @@ module Gradle
           io << "<span style='font-size: 120%'>#{htmlize(cmd.join(' '))}</span><br/>"
           io << "<pre>"
           
+          outputFormatter = OutputFormatter.new
           TextMate::Process.run(cmd) do |str, type|
-            str.chomp!
-            str = "<span style=\"#{type == :err ? 'color: red' : ''}\">#{htmlize(str)}</span>"
-
-            # Link individual test failures to their xml report files
-            str.sub! /Test (.+) FAILED/, "Test <a href=\"javascript:TextMate.system('\\\\'#{ENV['TM_BUNDLE_SUPPORT']}/bin/open_test_result.rb\\\\' \\\\'\\1\\\\'')\">\\1</a> FAILED"
-
-            # Italicise the task names
-            str.sub! /^(<.+?>)((?::.+?)*:\S+)/, "\\1<span style='font-style: italic; color: LightSteelBlue'>\\2</span>"
-            
-            # Link compile error messages to the source
-            str.sub! /^(<.+?>)(\/(?:.+?\/)+.+?\..+?):\s?(\d+)(.+)$/, "\\1<a href=\"javascript:TextMate.system('open \\\\'txmt://open/?url=file://\\2&line=\\3\\\\'')\">\\2:\\3</a>\\4"
-
-            # Link test failures to the html report
-            str.sub! /^(.+Cause: There were failing tests. See the report at )((?:\/.+)+)\.(.+)$/, "\\1<a href=\"javascript:TextMate.system('open \\\\'\\2/index.html\\\\'')\">\\2</a>.\\3"
-
-            # Link build file errors
-            str.sub! /^(<.+?>(?:Build file|Script) ')(.+)(')( line: (\d+))?/, "\\1<a href=\"javascript:TextMate.system('open \\\\'txmt://open/?url=file://\\2&line=\\5\\\\'')\">\\2</a>\\3\\4"
-            
-            # Colorise the UP-TO-DATE suffix
-            str.sub! /UP-TO-DATE/, "<span style='color: Moccasin'>UP-TO-DATE</span>"
-
-            # Colorise the UP-TO-DATE suffix
-            str.sub! /SKIPPED/, "<span style='color: #ABFFE2'>UP-TO-DATE</span>"
-            
-            # Colorise the build status
-            str.sub! /BUILD SUCCESSFUL/, "<span style='color: green; text-decoration: underline'>BUILD SUCCESSFUL</span>"
-            str.sub! /BUILD FAILED/, "<span style='color: red; text-decoration: underline'>BUILD FAILED</span>"
-            
-            io << str + "\n"
+            io << outputFormatter.format(str, type) + "\n"
           end
           io << "</pre>"
         end

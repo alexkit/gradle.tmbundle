@@ -11,7 +11,7 @@
 
 require ENV['TM_BUNDLE_SUPPORT'] + '/lib/gradle/project'
 
-Gradle::Project.new.run("build")</string>
+Gradle::Project.new.root_module.run("build")</string>
 	<key>input</key>
 	<string>none</string>
 	<key>keyEquivalent</key>

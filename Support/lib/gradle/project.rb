@@ -57,20 +57,6 @@ module Gradle
       end
     end  
     
-    def test_single_arg(file = ENV['TM_SELECTED_FILE']) 
-      if file.nil?
-        puts "No file selection"
-        exit 1
-      end
-      
-      clazz = File.basename(file, File.extname(file))
-      "-Dtest.single=#{clazz}"
-    end
-    
-    def test_single(file = ENV['TM_SELECTED_FILE'])
-      run("test", test_single_arg(file))
-    end
-    
     def run_previous_command
       previous = @prefs.get("previous_command")
       if previous.nil?

@@ -122,7 +122,7 @@ module Gradle
       Find.find(@path) do |path|
         base = File.basename(path)
         if FileTest.directory?(path)
-          if base[0] == ?. or path =~ /build\/(?!test-results$)/
+          if base[0] == ?. or path =~ /build\/(?!test-results.*)$/
             puts "pruning #{path}"
             Find.prune
           else
